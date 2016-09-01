@@ -67,6 +67,7 @@ class Decoder(object):
         self.mask = mask
         self.label = label
         self.output = output
+        self.initial_state = initial_state
         self.final_state = final_state
         self.loss = masked_loss
         self.trainer = trainer

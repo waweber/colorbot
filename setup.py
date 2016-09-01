@@ -17,6 +17,7 @@ setup(
         "console_scripts": [
             "colorbot_prepare = colorbot.scripts.prepare:prepare_data",
             "colorbot_train = colorbot.scripts.train:train",
+            "colorbot_sample = colorbot.scripts.sample:sample",
         ],
     },
 )
