@@ -80,8 +80,30 @@ def behr():
         yield Color(name_fmt, *rgb)
 
 
+def benjamin_moore():
+    url = "http://67.222.214.23/bmServices/ColorExplorer/colorexplorer.svc/Colors_GetByFilter?locale=en_US&collectionCode=&familyCode=&trendCode="
+
+    response = requests.get(url)
+    data = response.json()
+
+    for color in data:
+        name = color["colorName"].lower()
+        r = 2.0 * color["RGB"]["R"] / 255 - 1.0
+        g = 2.0 * color["RGB"]["G"] / 255 - 1.0
+        b = 2.0 * color["RGB"]["B"] / 255 - 1.0
+
+        name_fmt = "%s%s%s" % (
+            constants.START_SYMBOL,
+            name,
+            constants.END_SYMBOL,
+        )
+
+        yield Color(name_fmt, r, g, b)
+
+
 color_sources = [
     valspar,
     sherwin_williams,
     behr,
+    benjamin_moore,
 ]
