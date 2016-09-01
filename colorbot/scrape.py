@@ -36,7 +36,7 @@ def sherwin_williams():
             name, sep, extra = name_field.partition("|")
             name = name.lower()
 
-            r, g, b = hex_to_rgb(name)
+            r, g, b = hex_to_rgb(hex)
 
             c = Color(name, r, g, b)
             yield c
