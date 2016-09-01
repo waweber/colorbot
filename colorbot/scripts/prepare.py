@@ -39,11 +39,11 @@ def prepare_data():
     vocab = data.build_vocab(colors)
 
     logger.info("Saving vocab to: %s/vocab.json" % args.data_dir)
-    with open("%s/vocab.json" % args.data_dir) as f:
+    with open("%s/vocab.json" % args.data_dir, "w") as f:
         data.save_vocab(vocab, f)
 
     logger.info("Saving colors to %s/colors.json" % args.data_dir)
-    with open("%s/colors.json" % args.data_dir) as f:
+    with open("%s/colors.json" % args.data_dir, "w") as f:
         f.write(json.dumps(colors))
 
     logger.info("Saved %d colors" % len(colors))
