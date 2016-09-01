@@ -12,4 +12,10 @@ setup(
     packages=find_packages(),
 
     install_requires=reqs,
+
+    entry_points={
+        "console_scripts": [
+            "colorbot_prepare = colorbot.scripts.prepare:prepare_data",
+        ],
+    },
 )
