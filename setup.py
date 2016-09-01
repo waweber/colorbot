@@ -16,6 +16,7 @@ setup(
     entry_points={
         "console_scripts": [
             "colorbot_prepare = colorbot.scripts.prepare:prepare_data",
+            "colorbot_train = colorbot.scripts.train:train",
         ],
     },
 )

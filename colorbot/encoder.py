@@ -25,6 +25,7 @@ class Encoder(object):
             cell,
             lookup_input,
             sequence_length=length,
+            dtype=tf.float32,
             scope="Encoder",
         )
 

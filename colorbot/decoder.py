@@ -2,7 +2,7 @@ import tensorflow as tf
 from colorbot import tf_util, constants
 
 
-class Encoder(object):
+class Decoder(object):
     def __init__(self, hidden_size, vocab_size):
         cell = tf.nn.rnn_cell.GRUCell(hidden_size)
 
