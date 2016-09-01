@@ -1,3 +1,5 @@
+import json
+
 import requests
 
 from colorbot import constants
@@ -56,7 +58,30 @@ def sherwin_williams():
             yield c
 
 
+def behr():
+    url = "http://www.behr.com/mainService/services/colornx/all.js"
+
+    response = requests.get(url)
+    data_str = response.content.decode("utf-8")[15:-1]
+
+    data = json.loads(data_str)
+
+    for color in data[1:]:
+        name = color[0].lower()
+        rgb_txt = color[3]
+        rgb = hex_to_rgb(rgb_txt[1:])
+
+        name_fmt = "%s%s%s" % (
+            constants.START_SYMBOL,
+            name,
+            constants.END_SYMBOL,
+        )
+
+        yield Color(name_fmt, *rgb)
+
+
 color_sources = [
     valspar,
     sherwin_williams,
+    behr,
 ]
