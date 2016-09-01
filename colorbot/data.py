@@ -54,7 +54,7 @@ def load_vocab(f):
     return json.loads(f.read())
 
 
-def hex_to_rbg(txt):
+def hex_to_rgb(txt):
     """Turn a hex color code string into an RGB tuple.
 
     RGB tuples are floats on the interval [-1.0, 1.0].
