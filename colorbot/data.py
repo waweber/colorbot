@@ -2,8 +2,22 @@
 """
 import json
 from collections import namedtuple
+import numpy as np
+
+from colorbot import constants
 
 Color = namedtuple("Color", ("name", "r", "g", "b"))
+
+Batch = namedtuple("Batch", (
+    "encoder_input",
+    "encoder_length",
+    "encoder_target",
+    "decoder_state",
+    "decoder_input",
+    "decoder_length",
+    "decoder_mask",
+    "decoder_label",
+))
 
 
 def build_vocab(colors):
@@ -109,5 +123,48 @@ def yield_batches(iter, batch_size):
 
 
 def prepare_batch(batch, vocab):
+    """Turn a list of colors into a Batch object.
+
+    Args:
+        batch: The list of Color objects
+        vocab: The vocabulary dict
+
+    Returns:
+        A Batch object.
+    """
     batch_size = len(batch)
     max_len = max(len(c.name) for c in batch)
+
+    encoder_input = np.zeros([batch_size, max_len], np.int32)
+    encoder_length = np.zeros([batch_size], np.int32)
+    encoder_target = np.zeros([batch_size, constants.COLOR_SIZE], np.float32)
+
+    decoder_state = np.zeros([batch_size, constants.COLOR_SIZE], np.float32)
+    decoder_input = np.zeros([batch_size, max_len - 1], np.int32)
+    decoder_length = np.zeros([batch_size], np.int32)
+    decoder_mask = np.zeros([batch_size, max_len - 1], np.float32)
+    decoder_label = np.zeros([batch_size, max_len - 1], np.int32)
+
+    for i, color in enumerate(batch):
+        enc_name = [vocab[c] for c in color.name]
+
+        encoder_input[i, :len(enc_name)] = enc_name
+        encoder_length[i] = len(enc_name)
+        encoder_target[i, :] = color.r, color.g, color.b
+
+        decoder_state[i, :] = color.r, color.g, color.b
+        decoder_input[i, :len(enc_name) - 1] = enc_name[:-1]
+        decoder_length[i] = len(enc_name) - 1
+        decoder_mask[i, :len(enc_name) - 1] = 1.0
+        decoder_label[i, :len(enc_name) - 1] = enc_name[1:]
+
+    return Batch(
+        encoder_input,
+        encoder_length,
+        encoder_target,
+        decoder_state,
+        decoder_input,
+        decoder_length,
+        decoder_mask,
+        decoder_label,
+    )
