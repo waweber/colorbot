@@ -45,13 +45,21 @@ def build_vocab(colors):
 def save_vocab(vocab, f):
     """Save the vocab to a file.
     """
-    f.write(json.dumps(vocab, sort_keys=True, indent=2))
+
+    json_dict = {
+        k: v for k, v in vocab.items() if isinstance(k, int)
+        }
+    f.write(json.dumps(json_dict, sort_keys=True, indent=2))
 
 
 def load_vocab(f):
     """Load the vocab from a file.
     """
-    return json.loads(f.read())
+    json_dict = json.loads(f.read())
+
+    vocab = {int(k): v for k, v in json_dict.items()}
+    vocab.update({v: k for k, v in vocab.items()})
+    return vocab
 
 
 def hex_to_rgb(txt):

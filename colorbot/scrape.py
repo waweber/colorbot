@@ -1,4 +1,6 @@
 import requests
+
+from colorbot import constants
 from colorbot.data import Color, hex_to_rgb
 
 
@@ -19,7 +21,13 @@ def valspar():
             g_val = 2 * g / 255 - 1.0
             b_val = 2 * b / 255 - 1.0
 
-            c = Color(name, r_val, g_val, b_val)
+            name_fmt = "%s%s%s" % (
+                constants.START_SYMBOL,
+                name,
+                constants.END_SYMBOL,
+            )
+
+            c = Color(name_fmt, r_val, g_val, b_val)
             yield c
 
 
@@ -38,7 +46,13 @@ def sherwin_williams():
 
             r, g, b = hex_to_rgb(hex)
 
-            c = Color(name, r, g, b)
+            name_fmt = "%s%s%s" % (
+                constants.START_SYMBOL,
+                name,
+                constants.END_SYMBOL,
+            )
+
+            c = Color(name_fmt, r, g, b)
             yield c
 
 
