@@ -107,7 +107,7 @@ def rgb_to_hex(r, g, b):
     b_txt = "%02x" % b_int
     g_txt = "%02x" % g_int
 
-    return r_txt + b_txt + g_txt
+    return r_txt + g_txt + b_txt
 
 
 def yield_batches(iter, batch_size):
