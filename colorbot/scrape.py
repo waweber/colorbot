@@ -1,9 +1,11 @@
 import json
+import re
 
 import requests
 
 from colorbot import constants
 from colorbot.data import Color, hex_to_rgb
+import html
 
 
 def valspar():
@@ -134,10 +136,38 @@ def dulux():
         yield Color(name_fmt, r, g, b)
 
 
+def ppg():
+    url = "https://pittsburghpaintsandstains.com/color/paint-colors"
+
+    result = requests.get(url)
+
+    page = result.content.decode("utf-8")
+
+    pattern = """<a href=".*?" style="background-color:rgb\\(([0-9]+), ([0-9]+), ([0-9]+)\\);" .*? title="(.*?) &ndash; .*?>"""
+
+    matches = re.finditer(pattern, page)
+
+    for match in matches:
+        r = int(match.group(1)) / 255
+        g = int(match.group(2)) / 255
+        b = int(match.group(3)) / 255
+
+        name = html.unescape(match.group(4)).lower().strip()
+
+        name_fmt = "%s%s%s" % (
+            constants.START_SYMBOL,
+            name,
+            constants.END_SYMBOL,
+        )
+
+        yield Color(name_fmt, r, g, b)
+
+
 color_sources = [
     valspar,
     sherwin_williams,
     behr,
     benjamin_moore,
     dulux,
+    ppg,
 ]
