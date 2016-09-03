@@ -43,8 +43,8 @@ def save_auth(auth, f):
     """
 
     data = {
-        "consumer_key": auth.consumer_key,
-        "consumer_secret": auth.consumer_secret,
+        "consumer_key": auth.consumer_key.decode("ascii"),
+        "consumer_secret": auth.consumer_secret.decode("ascii"),
         "access_token": auth.access_token,
         "access_token_secret": auth.access_token_secret,
     }

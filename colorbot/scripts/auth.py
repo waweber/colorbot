@@ -14,18 +14,18 @@ def auth():
     consumer_key = input("Consumer Key: ")
     consumer_secret = input("Consumer Secret: ")
 
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret,
-                               callback="http://127.0.0.1/")
-    url = auth.get_authorization_url()
-
-    print("Authorize at: %s" % url)
-
-    verifier = input("Verifier: ")
-
     try:
+        auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+        
+        url = auth.get_authorization_url()
+
+        print("Authorize at: %s" % url)
+
+        verifier = input("Verifier: ")
+
         auth.get_access_token(verifier)
-    except tweepy.TweepError:
-        print("Authorization failed")
+    except tweepy.TweepError as e:
+        print("Authorization failed: %s" % e)
         exit(2)
 
     with open(args.output_file, "w") as f:
