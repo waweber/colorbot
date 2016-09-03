@@ -1,14 +1,16 @@
+import io
 import logging
 import re
 
 import tweepy
 from colorbot import constants
-from colorbot.data import hex_to_rgb
+from colorbot.data import hex_to_rgb, rgb_to_hex
 from colorbot.decoder import Decoder
 from colorbot.encoder import Encoder
 
 import tensorflow as tf
 import numpy as np
+from colorbot.twitter.drawing import create_png
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +87,48 @@ def name_color(hex, status_id, screen_name, api, name_set, vocab, hidden_size,
         try:
             api.update_status(status, status_id)
         except tweepy.TweepError as e:
-            logger.warn("Failed replying with color name: %s" % e)
+            logger.error("Failed replying with color name: %s" % e)
+
+
+def guess_color(name, status_id, screen_name, api, vocab, hidden_size,
+                param_path):
+    logger.info("Guessing color for \"%s\"" % name)
+
+    session = tf.Session()
+
+    encoder = Encoder(hidden_size, len(vocab) // 2)
+    decoder = Decoder(hidden_size, len(vocab) // 2)
+
+    session.run(tf.initialize_all_variables())
+
+    saver = tf.train.Saver()
+    saver.restore(session, param_path)
+
+    enc_name = [vocab[c] for c in name]
+
+    output = session.run(
+        encoder.output,
+        feed_dict={
+            encoder.input: [enc_name],
+            encoder.length: [len(enc_name)],
+        },
+    )
+
+    r, g, b = output[0].tolist()
+    hex_str = rgb_to_hex(r, g, b)
+
+    logger.info("Guessed %s" % hex_str)
+
+    png_data = create_png(r, g, b)
+    png_file = io.BytesIO(png_data)
+
+    status = "@%s %s - %s" % (screen_name, name[:50], hex_str)
+
+    try:
+        api.update_status_with_media("%s.png" % name, status, status_id,
+                                     file=png_file)
+    except tweepy.TweepError as e:
+        logging.error("Failed to tweet guessed color: %s" % e)
 
 
 class StreamListener(tweepy.StreamListener):
