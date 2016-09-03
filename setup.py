@@ -5,6 +5,7 @@ reqs = [
     "numpy",
     "requests",
     "tweepy",
+    "pngcanvas",
 ]
 
 setup(
