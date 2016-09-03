@@ -109,14 +109,16 @@ def sample():
                     },
                 )
 
-            val = random.random()
+            name.append(np.argmax(output[0]))
 
-            for i in range(output[0].shape[0]):
-                if val < output[0][i]:
-                    name.append(i)
-                    break
-                else:
-                    val -= output[0][i]
+            # val = random.random()
+            #
+            # for i in range(output[0].shape[0]):
+            #     if val < output[0][i]:
+            #         name.append(i)
+            #         break
+            #     else:
+            #         val -= output[0][i]
 
         str_name = "".join(vocab[i] for i in name)[1:-1]
 
