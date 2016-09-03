@@ -12,25 +12,30 @@ def valspar():
     result = requests.get(url)
     data = result.json()
 
+    seen_ids = set()
+
     for family in data["data"]:
         for color in family["colors"]:
-            name = color["name"].lower()
-            r = color["rgb"]["r"]
-            g = color["rgb"]["g"]
-            b = color["rgb"]["b"]
+            if color["id"] not in seen_ids:
+                name = color["name"].lower()
+                r = color["rgb"]["r"]
+                g = color["rgb"]["g"]
+                b = color["rgb"]["b"]
 
-            r_val = 2 * r / 255 - 1.0
-            g_val = 2 * g / 255 - 1.0
-            b_val = 2 * b / 255 - 1.0
+                r_val = 2 * r / 255 - 1.0
+                g_val = 2 * g / 255 - 1.0
+                b_val = 2 * b / 255 - 1.0
 
-            name_fmt = "%s%s%s" % (
-                constants.START_SYMBOL,
-                name,
-                constants.END_SYMBOL,
-            )
+                name_fmt = "%s%s%s" % (
+                    constants.START_SYMBOL,
+                    name,
+                    constants.END_SYMBOL,
+                )
 
-            c = Color(name_fmt, r_val, g_val, b_val)
-            yield c
+                seen_ids.add(color["id"])
+
+                c = Color(name_fmt, r_val, g_val, b_val)
+                yield c
 
 
 def sherwin_williams():
@@ -66,18 +71,24 @@ def behr():
 
     data = json.loads(data_str)
 
+    seen_names = set()
+
     for color in data[1:]:
         name = color[0].lower()
-        rgb_txt = color[3]
-        rgb = hex_to_rgb(rgb_txt[1:])
 
-        name_fmt = "%s%s%s" % (
-            constants.START_SYMBOL,
-            name,
-            constants.END_SYMBOL,
-        )
+        if name not in seen_names:
+            rgb_txt = color[3]
+            rgb = hex_to_rgb(rgb_txt[1:])
 
-        yield Color(name_fmt, *rgb)
+            name_fmt = "%s%s%s" % (
+                constants.START_SYMBOL,
+                name,
+                constants.END_SYMBOL,
+            )
+
+            seen_names.add(name)
+
+            yield Color(name_fmt, *rgb)
 
 
 def benjamin_moore():
@@ -87,6 +98,7 @@ def benjamin_moore():
     data = response.json()
 
     for color in data:
+
         name = color["colorName"].lower()
         r = 2.0 * color["RGB"]["R"] / 255 - 1.0
         g = 2.0 * color["RGB"]["G"] / 255 - 1.0
