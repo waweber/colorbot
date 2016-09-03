@@ -98,11 +98,32 @@ def benjamin_moore():
     data = response.json()
 
     for color in data:
-
         name = color["colorName"].lower()
         r = 2.0 * color["RGB"]["R"] / 255 - 1.0
         g = 2.0 * color["RGB"]["G"] / 255 - 1.0
         b = 2.0 * color["RGB"]["B"] / 255 - 1.0
+
+        name_fmt = "%s%s%s" % (
+            constants.START_SYMBOL,
+            name,
+            constants.END_SYMBOL,
+        )
+
+        yield Color(name_fmt, r, g, b)
+
+
+def dulux():
+    url = "https://www.dulux.co.uk/en/api/products/colors"
+
+    result = requests.get(url)
+
+    data = result.json()
+
+    for color in data["colors"]:
+        name = color["name"].lower()
+        hex = color["rgb"]
+
+        r, g, b, = hex_to_rgb(hex)
 
         name_fmt = "%s%s%s" % (
             constants.START_SYMBOL,
@@ -118,4 +139,5 @@ color_sources = [
     sherwin_williams,
     behr,
     benjamin_moore,
+    dulux,
 ]
