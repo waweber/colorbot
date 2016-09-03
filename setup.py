@@ -4,6 +4,7 @@ reqs = [
     "tensorflow",
     "numpy",
     "requests",
+    "tweepy",
 ]
 
 setup(
@@ -18,6 +19,7 @@ setup(
             "colorbot_prepare = colorbot.scripts.prepare:prepare_data",
             "colorbot_train = colorbot.scripts.train:train",
             "colorbot_sample = colorbot.scripts.sample:sample",
+            "colorbot_auth = colorbot.scripts.auth:auth",
         ],
     },
 )
