@@ -227,7 +227,7 @@ class StreamListener(tweepy.StreamListener):
                               constants.END_SYMBOL)
 
                 task = {
-                    "type": "name",
+                    "type": "guess",
                     "name": input_name,
                     "status_id": id,
                     "screen_name": screen_name,
