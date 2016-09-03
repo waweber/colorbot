@@ -78,6 +78,9 @@ def name_color(hex, status_id, screen_name, api, name_set, vocab, hidden_size,
                     name_seq_str not in name_set):
             name = name_seq_str[1:-1]
 
+    session.close()
+    tf.reset_default_graph()
+
     if name is None:
         logger.warn("Giving up on naming")
     else:
@@ -116,6 +119,9 @@ def guess_color(name, status_id, screen_name, api, vocab, hidden_size,
 
     r, g, b = output[0].tolist()
     hex_str = rgb_to_hex(r, g, b)
+
+    session.close()
+    tf.reset_default_graph()
 
     logger.info("Guessed %s" % hex_str)
 
