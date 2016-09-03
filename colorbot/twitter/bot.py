@@ -1,8 +1,11 @@
+import datetime
 import io
 import logging
 import re
+import signal
 import threading
 
+import time
 import tweepy
 from colorbot import constants
 from colorbot.data import hex_to_rgb, rgb_to_hex
@@ -197,6 +200,17 @@ class StreamListener(tweepy.StreamListener):
 
             if hex_match is not None:
                 hex_str = hex_match.group(2)
+                task = {
+                    "type": "name",
+                    "hex": hex_str,
+                    "status_id": id,
+                    "screen_name": screen_name,
+                }
+
+                with self.state.has_tasks:
+                    self.state.tasks.append(task)
+                    self.state.has_tasks.notify()
+
             elif name_match is not None:
                 name = hex_match.group(1).strip().lower()
 
@@ -207,6 +221,37 @@ class StreamListener(tweepy.StreamListener):
                 input_name = (constants.START_SYMBOL + filtered_name +
                               constants.END_SYMBOL)
 
+                task = {
+                    "type": "name",
+                    "name": input_name,
+                    "status_id": id,
+                    "screen_name": screen_name,
+                }
+
+                with self.state.has_tasks:
+                    self.state.tasks.append(task)
+                    self.state.has_tasks.notify()
+
+
+def worker(state):
+    while True:
+        with state.has_tasks:
+            while state.stop is False and len(state.tasks) == 0:
+                state.has_tasks.wait()
+
+            if state.stop is not False:
+                return  # Stop
+
+            # get task
+            task = state.tasks.pop()
+
+            if task["type"] == "name":
+                name_color(task["hex"], task["status_id"], task["screen_name"],
+                           state)
+            elif task["type"] == "guess":
+                guess_color(task["name"], task["status_id"],
+                            task["screen_name"], state)
+
 
 def run(auth, name_set, api, vocab, hidden_size, param_path):
     state = GlobalState()
@@ -216,4 +261,22 @@ def run(auth, name_set, api, vocab, hidden_size, param_path):
     state.hidden_size = hidden_size
     state.param_path = param_path
 
-    stream = tweepy.Stream(auth, StreamListener(state))
+    listener = StreamListener(state)
+    stream = tweepy.Stream(auth, listener)
+
+    def int_handler(*args):
+        with state.has_tasks:
+            state.stop = True
+            state.has_tasks.notify_all()
+
+        stream.disconnect()
+
+    signal.signal(signal.SIGINT, int_handler)
+    signal.signal(signal.SIGTERM, int_handler)
+
+    worker_thread = threading.Thread(target=worker, args=(state,))
+    worker_thread.run()
+
+    stream.userstream(async=True)
+
+    worker_thread.join()

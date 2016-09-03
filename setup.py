@@ -22,6 +22,7 @@ setup(
             "colorbot_sample = colorbot.scripts.sample:sample",
             "colorbot_auth = colorbot.scripts.auth:auth",
             "colorbot_post = colorbot.scripts.post:post",
+            "colorbot_run = colorbot.scripts.bot:bot",
         ],
     },
 )
