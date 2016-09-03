@@ -20,6 +20,20 @@ logger = logging.getLogger(__name__)
 
 
 class GlobalState(object):
+    """Class to hold global application state.
+
+    Attributes:
+        api: The Tweepy API instance
+        name_set (set): A set of strings of existing color names
+        vocab: The encoder/decoder vocabulary
+        hidden_size (int): The model's hidden layer size
+        param_path (str): Path to the saved model parameters
+        stop (bool): True if the worker threads should stop
+        tasks: List of dicts describing tasks to do
+        lock: Mutex to control shared access to these attributes
+        has_tasks: Condition notified when tasks is changed
+    """
+
     def __init__(self):
         self.api = None
         self.name_set = None
@@ -36,10 +50,21 @@ class GlobalState(object):
 
 
 def name_color(hex, status_id, screen_name, global_state):
+    """Name a color and post to Twitter.
+
+    Acquire the lock before using.
+
+    Args:
+        hex (str): The hex color code string (6 chars)
+        status_id (str): The ID of the status to reply to
+        screen_name (str): The screen name to reply to
+        global_state: A global state instance
+    """
     logger.info("Naming color %s" % hex)
 
     r, g, b = hex_to_rgb(hex)
 
+    # Set up session and models
     session = tf.Session()
 
     encoder = Encoder(global_state.hidden_size,
@@ -49,22 +74,30 @@ def name_color(hex, status_id, screen_name, global_state):
 
     session.run(tf.initialize_all_variables())
 
+    # Load params from file
     saver = tf.train.Saver()
     saver.restore(session, global_state.param_path)
 
+    # Name color
     name = None
     tries = 50
 
+    # Try up to `tries` times to get a valid name
     while name is None and tries > 0:
         tries -= 1
 
         name_seq = [global_state.vocab[constants.START_SYMBOL]]
         state = None
 
+        # Sample from model until:
+        #   - We get a sequence longer than 50 (too long, quit), OR
+        #   - The returned symbol is the end symbol
         while (len(name_seq) < 50 and
                        global_state.vocab[
                            name_seq[-1]] != constants.END_SYMBOL):
+
             if state is None:
+                # Provide color to generate first hidden state
                 state, output = session.run(
                     [decoder.final_state, decoder.output],
                     feed_dict={
@@ -75,6 +108,7 @@ def name_color(hex, status_id, screen_name, global_state):
                     },
                 )
             else:
+                # Use the last hidden state
                 state, output = session.run(
                     [decoder.final_state, decoder.output],
                     feed_dict={
@@ -85,6 +119,7 @@ def name_color(hex, status_id, screen_name, global_state):
                     },
                 )
 
+            # Weighted random pick from output PMF
             val = np.random.rand()
 
             for i, prob in enumerate(output[0]):
@@ -94,15 +129,21 @@ def name_color(hex, status_id, screen_name, global_state):
                 else:
                     val -= prob
 
+        # Turn the output sequence into strings
         name_seq_str = "".join(global_state.vocab[i] for i in name_seq)
 
+        # If name generation is successful, set name
+        # We skip this and try again if the loop exited before generating the
+        # end symbol, or if it generated an existing color name
         if (global_state.vocab[name_seq[-1]] == constants.END_SYMBOL and
                     name_seq_str not in global_state.name_set):
             name = name_seq_str[1:-1]
 
+    # Clean up session
     session.close()
     tf.reset_default_graph()
 
+    # Try to tweet
     if name is None:
         logger.warn("Giving up on naming")
     else:
@@ -116,8 +157,20 @@ def name_color(hex, status_id, screen_name, global_state):
 
 
 def guess_color(name, status_id, screen_name, global_state):
+    """Guess a color value, upload it to twitter.
+
+    Acquire the lock before using.
+
+    Args:
+        name (str): The name of the color
+        status_id (str): The ID of the status to reply to
+        screen_name (str): The screen name to reply to
+        global_state: A global state instance
+    """
+
     logger.info("Guessing color for \"%s\"" % name)
 
+    # Set up model
     session = tf.Session()
 
     encoder = Encoder(global_state.hidden_size,
@@ -127,9 +180,11 @@ def guess_color(name, status_id, screen_name, global_state):
 
     session.run(tf.initialize_all_variables())
 
+    # Load model parameters
     saver = tf.train.Saver()
     saver.restore(session, global_state.param_path)
 
+    # Feed name into model
     enc_name = [global_state.vocab[c] for c in name]
 
     output = session.run(
@@ -140,17 +195,21 @@ def guess_color(name, status_id, screen_name, global_state):
         },
     )
 
+    # Turn model output into hex
     r, g, b = output[0].tolist()
     hex_str = rgb_to_hex(r, g, b)
 
+    # Clean up model
     session.close()
     tf.reset_default_graph()
 
     logger.info("Guessed %s" % hex_str)
 
+    # Create PNG file
     png_data = create_png(r, g, b)
     png_file = io.BytesIO(png_data)
 
+    # Upload to twitter
     status = "@%s %s - %s" % (screen_name, name[:50], hex_str)
 
     try:
@@ -205,6 +264,8 @@ class StreamListener(tweepy.StreamListener):
 
             if hex_match is not None:
                 hex_str = hex_match.group(2)
+
+                # Tell the worker thread to handle this
                 task = {
                     "type": "name",
                     "hex": hex_str,
@@ -223,9 +284,11 @@ class StreamListener(tweepy.StreamListener):
                 filtered_name = "".join(
                     c for c in name if c in self.state.vocab)
 
+                # Add start/end symbols
                 input_name = (constants.START_SYMBOL + filtered_name +
                               constants.END_SYMBOL)
 
+                # Tell worker thread to guess
                 task = {
                     "type": "guess",
                     "name": input_name,
@@ -239,11 +302,19 @@ class StreamListener(tweepy.StreamListener):
 
 
 def worker(state):
+    """Twitter reply worker thread.
+
+    Args:
+        state: The global state instance
+    """
+
     while True:
         with state.has_tasks:
+            # Wait for state.has_tasks to be notified
             while state.stop is False and len(state.tasks) == 0:
                 state.has_tasks.wait()
 
+            # Check if stop is requested
             if state.stop is not False:
                 logger.debug("Worker thread exiting")
                 return  # Stop
@@ -253,6 +324,7 @@ def worker(state):
 
             logger.debug("Worker thread handling task: %r" % task)
 
+            # Handle task
             if task["type"] == "name":
                 name_color(task["hex"], task["status_id"], task["screen_name"],
                            state)
@@ -260,10 +332,22 @@ def worker(state):
                 guess_color(task["name"], task["status_id"],
                             task["screen_name"], state)
 
+        # Don't try to handle anything for a short while
         time.sleep(10)
 
 
 def run(auth, name_set, api, vocab, hidden_size, param_path):
+    """Run the bot.
+
+    Args:
+        auth: Tweepy auth handler instance
+        name_set: Set of real color names
+        api: Tweepy API instance
+        vocab: The model vocabulary dict
+        hidden_size (int): The model's hidden size
+        param_path (str): Path of the model parameters file
+    """
+    
     state = GlobalState()
     state.api = api
     state.name_set = name_set
