@@ -272,28 +272,32 @@ def run(auth, name_set, api, vocab, hidden_size, param_path):
     state.hidden_size = hidden_size
     state.param_path = param_path
 
+    def term_handler(*args):
+        raise KeyboardInterrupt("SIGTERM")
+
+    signal.signal(signal.SIGTERM, term_handler)
+
     listener = StreamListener(state)
     stream = tweepy.Stream(auth, listener)
-
-    def int_handler(*args):
-        with state.has_tasks:
-            logger.info("Stopping")
-            state.stop = True
-            state.has_tasks.notify_all()
-
-    signal.signal(signal.SIGINT, int_handler)
-    signal.signal(signal.SIGTERM, int_handler)
 
     logger.info("Starting worker thread")
     worker_thread = threading.Thread(target=worker, args=(state,))
     worker_thread.start()
 
     logger.info("Starting twitter stream")
-    stream.userstream(async=True)
 
-    worker_thread.join()
+    try:
+        stream.userstream()
+    except KeyboardInterrupt:
+        pass
 
     stream.disconnect()
+
+    with state.has_tasks:
+        state.stop = True
+        state.has_tasks.notify_all()
+
+    worker_thread.join()
 
     logger.info("Exiting")
     exit(0)
