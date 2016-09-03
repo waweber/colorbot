@@ -263,6 +263,8 @@ def worker(state):
                 guess_color(task["name"], task["status_id"],
                             task["screen_name"], state)
 
+        time.sleep(10)
+
 
 def run(auth, name_set, api, vocab, hidden_size, param_path):
     state = GlobalState()
