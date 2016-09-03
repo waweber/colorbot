@@ -3,8 +3,89 @@ import re
 
 import tweepy
 from colorbot import constants
+from colorbot.data import hex_to_rgb
+from colorbot.decoder import Decoder
+from colorbot.encoder import Encoder
+
+import tensorflow as tf
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+def name_color(hex, status_id, screen_name, api, name_set, vocab, hidden_size,
+               param_path):
+    logger.info("Naming color %s" % hex)
+
+    r, g, b = hex_to_rgb(hex)
+
+    session = tf.Session()
+
+    encoder = Encoder(hidden_size, len(vocab) // 2)
+    decoder = Decoder(hidden_size, len(vocab) // 2)
+
+    session.run(tf.initialize_all_variables())
+
+    saver = tf.train.Saver()
+    saver.restore(session, param_path)
+
+    name = None
+    tries = 50
+
+    while name is None and tries > 0:
+        tries -= 1
+
+        name_seq = [vocab[constants.START_SYMBOL]]
+        state = None
+
+        while (len(name_seq) < 50 and
+                       vocab[name_seq[-1]] != constants.END_SYMBOL):
+            if state is None:
+                state, output = session.run(
+                    [decoder.final_state, decoder.output],
+                    feed_dict={
+                        decoder.state: [[r, g, b]],
+                        decoder.input: [[name_seq[-1]]],
+                        decoder.length: [1],
+                        decoder.mask: [[1.0]],
+                    },
+                )
+            else:
+                state, output = session.run(
+                    [decoder.final_state, decoder.output],
+                    feed_dict={
+                        decoder.initial_state: state,
+                        decoder.input: [[name_seq[-1]]],
+                        decoder.length: [1],
+                        decoder.mask: [[1.0]],
+                    },
+                )
+
+            val = np.random.rand()
+
+            for i, prob in enumerate(output[0]):
+                if prob > val:
+                    name_seq.append(i)
+                    break
+                else:
+                    val -= prob
+
+        name_seq_str = "".join(vocab[i] for i in name_seq)
+
+        if (vocab[name_seq[-1]] == constants.END_SYMBOL and
+                    name_seq_str not in name_set):
+            name = name_seq_str[1:-1]
+
+    if name is None:
+        logger.warn("Giving up on naming")
+    else:
+        logger.info("Replying with name %s" % name)
+        status = "@%s %s" % (screen_name, name)
+
+        try:
+            api.update_status(status, status_id)
+        except tweepy.TweepError as e:
+            logger.warn("Failed replying with color name: %s" % e)
 
 
 class StreamListener(tweepy.StreamListener):
