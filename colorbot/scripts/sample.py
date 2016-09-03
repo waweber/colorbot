@@ -65,6 +65,11 @@ def sample():
     with open("%s/vocab.json" % args.data_dir) as f:
         vocab = data.load_vocab(f)
 
+    with open("%s/colors.json" % args.data_dir) as f:
+        colors_list = json.loads(f.read())
+
+        name_set = {c[0] for c in colors_list}
+
     session = tf.Session()
 
     encoder_model = encoder.Encoder(args.hidden_size, len(vocab) // 2)
@@ -76,12 +81,13 @@ def sample():
 
     colors = []
 
-    for i in range(30):
-        color = (
-            2 * random.random() - 1.0,
-            2 * random.random() - 1.0,
-            2 * random.random() - 1.0,
-        )
+    color = (
+        2 * random.random() - 1.0,
+        2 * random.random() - 1.0,
+        2 * random.random() - 1.0,
+    )
+
+    while len(colors) < 30:
 
         # Name color
         name = [vocab[constants.START_SYMBOL]]
@@ -118,19 +124,27 @@ def sample():
                 else:
                     val -= output[0][i]
 
-        str_name = "".join(vocab[i] for i in name)[1:-1]
+        str_name = "".join(vocab[i] for i in name)
 
-        output = session.run(
-            encoder_model.output,
-            feed_dict={
-                encoder_model.input: [name],
-                encoder_model.length: [len(name)],
-            },
-        )
+        if str_name[-1] == constants.END_SYMBOL and str_name not in name_set:
 
-        hex = data.rgb_to_hex(*output[0].tolist())
+            output = session.run(
+                encoder_model.output,
+                feed_dict={
+                    encoder_model.input: [name],
+                    encoder_model.length: [len(name)],
+                },
+            )
 
-        colors.append((data.rgb_to_hex(*color), str_name, hex))
+            hex = data.rgb_to_hex(*output[0].tolist())
+
+            colors.append((data.rgb_to_hex(*color), str_name[1:-1], hex))
+
+            color = (
+                2 * random.random() - 1.0,
+                2 * random.random() - 1.0,
+                2 * random.random() - 1.0,
+            )
 
     content = ""
 
