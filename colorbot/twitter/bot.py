@@ -1,6 +1,7 @@
 import io
 import logging
 import re
+import threading
 
 import tweepy
 from colorbot import constants
@@ -15,141 +16,160 @@ from colorbot.twitter.drawing import create_png
 logger = logging.getLogger(__name__)
 
 
-def name_color(hex, status_id, screen_name, api, name_set, vocab, hidden_size,
-               param_path):
-    logger.info("Naming color %s" % hex)
+class GlobalState(object):
+    def __init__(self):
+        self.api = None
+        self.name_set = None
+        self.vocab = None
+        self.hidden_size = None
+        self.param_path = None
 
-    r, g, b = hex_to_rgb(hex)
+        self.stop = False
 
-    session = tf.Session()
+        self.tasks = []
 
-    encoder = Encoder(hidden_size, len(vocab) // 2)
-    decoder = Decoder(hidden_size, len(vocab) // 2)
+        self.lock = threading.Lock()
+        self.has_tasks = threading.Condition(lock=self.lock)
 
-    session.run(tf.initialize_all_variables())
 
-    saver = tf.train.Saver()
-    saver.restore(session, param_path)
+def name_color(hex, status_id, screen_name, global_state):
+    with global_state.lock:
+        logger.info("Naming color %s" % hex)
 
-    name = None
-    tries = 50
+        r, g, b = hex_to_rgb(hex)
 
-    while name is None and tries > 0:
-        tries -= 1
+        session = tf.Session()
 
-        name_seq = [vocab[constants.START_SYMBOL]]
-        state = None
+        encoder = Encoder(global_state.hidden_size,
+                          len(global_state.vocab) // 2)
+        decoder = Decoder(global_state.hidden_size,
+                          len(global_state.vocab) // 2)
 
-        while (len(name_seq) < 50 and
-                       vocab[name_seq[-1]] != constants.END_SYMBOL):
-            if state is None:
-                state, output = session.run(
-                    [decoder.final_state, decoder.output],
-                    feed_dict={
-                        decoder.state: [[r, g, b]],
-                        decoder.input: [[name_seq[-1]]],
-                        decoder.length: [1],
-                        decoder.mask: [[1.0]],
-                    },
-                )
-            else:
-                state, output = session.run(
-                    [decoder.final_state, decoder.output],
-                    feed_dict={
-                        decoder.initial_state: state,
-                        decoder.input: [[name_seq[-1]]],
-                        decoder.length: [1],
-                        decoder.mask: [[1.0]],
-                    },
-                )
+        session.run(tf.initialize_all_variables())
 
-            val = np.random.rand()
+        saver = tf.train.Saver()
+        saver.restore(session, global_state.param_path)
 
-            for i, prob in enumerate(output[0]):
-                if prob > val:
-                    name_seq.append(i)
-                    break
+        name = None
+        tries = 50
+
+        while name is None and tries > 0:
+            tries -= 1
+
+            name_seq = [global_state.vocab[constants.START_SYMBOL]]
+            state = None
+
+            while (len(name_seq) < 50 and
+                           global_state.vocab[
+                               name_seq[-1]] != constants.END_SYMBOL):
+                if state is None:
+                    state, output = session.run(
+                        [decoder.final_state, decoder.output],
+                        feed_dict={
+                            decoder.state: [[r, g, b]],
+                            decoder.input: [[name_seq[-1]]],
+                            decoder.length: [1],
+                            decoder.mask: [[1.0]],
+                        },
+                    )
                 else:
-                    val -= prob
+                    state, output = session.run(
+                        [decoder.final_state, decoder.output],
+                        feed_dict={
+                            decoder.initial_state: state,
+                            decoder.input: [[name_seq[-1]]],
+                            decoder.length: [1],
+                            decoder.mask: [[1.0]],
+                        },
+                    )
 
-        name_seq_str = "".join(vocab[i] for i in name_seq)
+                val = np.random.rand()
 
-        if (vocab[name_seq[-1]] == constants.END_SYMBOL and
-                    name_seq_str not in name_set):
-            name = name_seq_str[1:-1]
+                for i, prob in enumerate(output[0]):
+                    if prob > val:
+                        name_seq.append(i)
+                        break
+                    else:
+                        val -= prob
 
-    session.close()
-    tf.reset_default_graph()
+            name_seq_str = "".join(global_state.vocab[i] for i in name_seq)
 
-    if name is None:
-        logger.warn("Giving up on naming")
-    else:
-        logger.info("Replying with name %s" % name)
-        status = "@%s %s" % (screen_name, name)
+            if (global_state.vocab[name_seq[-1]] == constants.END_SYMBOL and
+                        name_seq_str not in global_state.name_set):
+                name = name_seq_str[1:-1]
+
+        session.close()
+        tf.reset_default_graph()
+
+        if name is None:
+            logger.warn("Giving up on naming")
+        else:
+            logger.info("Replying with name %s" % name)
+            status = "@%s %s" % (screen_name, name)
+
+            try:
+                global_state.api.update_status(status, status_id)
+            except tweepy.TweepError as e:
+                logger.error("Failed replying with color name: %s" % e)
+
+
+def guess_color(name, status_id, screen_name, global_state):
+    with global_state.lock:
+        logger.info("Guessing color for \"%s\"" % name)
+
+        session = tf.Session()
+
+        encoder = Encoder(global_state.hidden_size,
+                          len(global_state.vocab) // 2)
+        decoder = Decoder(global_state.hidden_size,
+                          len(global_state.vocab) // 2)
+
+        session.run(tf.initialize_all_variables())
+
+        saver = tf.train.Saver()
+        saver.restore(session, global_state.param_path)
+
+        enc_name = [global_state.vocab[c] for c in name]
+
+        output = session.run(
+            encoder.output,
+            feed_dict={
+                encoder.input: [enc_name],
+                encoder.length: [len(enc_name)],
+            },
+        )
+
+        r, g, b = output[0].tolist()
+        hex_str = rgb_to_hex(r, g, b)
+
+        session.close()
+        tf.reset_default_graph()
+
+        logger.info("Guessed %s" % hex_str)
+
+        png_data = create_png(r, g, b)
+        png_file = io.BytesIO(png_data)
+
+        status = "@%s %s - %s" % (screen_name, name[:50], hex_str)
 
         try:
-            api.update_status(status, status_id)
+            global_state.api.update_status_with_media("%s.png" % name, status,
+                                                      status_id,
+                                                      file=png_file)
         except tweepy.TweepError as e:
-            logger.error("Failed replying with color name: %s" % e)
-
-
-def guess_color(name, status_id, screen_name, api, vocab, hidden_size,
-                param_path):
-    logger.info("Guessing color for \"%s\"" % name)
-
-    session = tf.Session()
-
-    encoder = Encoder(hidden_size, len(vocab) // 2)
-    decoder = Decoder(hidden_size, len(vocab) // 2)
-
-    session.run(tf.initialize_all_variables())
-
-    saver = tf.train.Saver()
-    saver.restore(session, param_path)
-
-    enc_name = [vocab[c] for c in name]
-
-    output = session.run(
-        encoder.output,
-        feed_dict={
-            encoder.input: [enc_name],
-            encoder.length: [len(enc_name)],
-        },
-    )
-
-    r, g, b = output[0].tolist()
-    hex_str = rgb_to_hex(r, g, b)
-
-    session.close()
-    tf.reset_default_graph()
-
-    logger.info("Guessed %s" % hex_str)
-
-    png_data = create_png(r, g, b)
-    png_file = io.BytesIO(png_data)
-
-    status = "@%s %s - %s" % (screen_name, name[:50], hex_str)
-
-    try:
-        api.update_status_with_media("%s.png" % name, status, status_id,
-                                     file=png_file)
-    except tweepy.TweepError as e:
-        logging.error("Failed to tweet guessed color: %s" % e)
+            logging.error("Failed to tweet guessed color: %s" % e)
 
 
 class StreamListener(tweepy.StreamListener):
-    def __init__(self, api, name_set, vocab, hidden_size, param_path):
-        self.api = api
-        self.name_set = name_set
-        self.vocab = vocab
-        self.hidden_size = hidden_size
-        self.param_path = param_path
+    def __init__(self, state):
+        self.state = state
         self._my_id = None
 
     @property
     def my_id(self):
         if self._my_id is None:
-            me = self.api.me()
+            with self.state.lock:
+                me = self.state.api.me()
             self._my_id = me.id_str
 
         return self._my_id
@@ -181,11 +201,19 @@ class StreamListener(tweepy.StreamListener):
                 name = hex_match.group(1).strip().lower()
 
                 # Remove unknown characters
-                filtered_name = "".join(c for c in name if c in self.vocab)
+                filtered_name = "".join(
+                    c for c in name if c in self.state.vocab)
 
                 input_name = (constants.START_SYMBOL + filtered_name +
                               constants.END_SYMBOL)
 
 
-def run(name_set, api, vocab, hidden_size, param_path):
-    pass
+def run(auth, name_set, api, vocab, hidden_size, param_path):
+    state = GlobalState()
+    state.api = api
+    state.name_set = name_set
+    state.vocab = vocab
+    state.hidden_size = hidden_size
+    state.param_path = param_path
+
+    stream = tweepy.Stream(auth, StreamListener(state))
