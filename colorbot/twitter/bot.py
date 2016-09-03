@@ -217,7 +217,7 @@ class StreamListener(tweepy.StreamListener):
                     self.state.has_tasks.notify()
 
             elif name_match is not None:
-                name = hex_match.group(1).strip().lower()
+                name = name_match.group(1).strip().lower()
 
                 # Remove unknown characters
                 filtered_name = "".join(
