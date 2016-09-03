@@ -154,8 +154,8 @@ def guess_color(name, status_id, screen_name, global_state):
     status = "@%s %s - %s" % (screen_name, name[:50], hex_str)
 
     try:
-        global_state.api.update_status_with_media("%s.png" % name, status,
-                                                  status_id, file=png_file)
+        global_state.api.update_with_media("%s.png" % name, status, status_id,
+                                           file=png_file)
     except tweepy.TweepError as e:
         logging.error("Failed to tweet guessed color: %s" % e)
 
