@@ -3,10 +3,8 @@ import json
 import logging
 import random
 
-from colorbot import data, encoder, decoder, constants
-
 import tensorflow as tf
-import numpy as np
+from colorbot import data, encoder, decoder, constants
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +125,6 @@ def sample():
         str_name = "".join(vocab[i] for i in name)
 
         if str_name[-1] == constants.END_SYMBOL and str_name not in name_set:
-
             output = session.run(
                 encoder_model.output,
                 feed_dict={

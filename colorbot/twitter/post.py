@@ -1,8 +1,8 @@
 import io
 import logging
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 import tweepy
 from colorbot import constants
 from colorbot.data import rgb_to_hex

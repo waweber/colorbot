@@ -3,10 +3,9 @@ import json
 import logging
 import random
 
-from colorbot import data, encoder, decoder
-
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+from colorbot import data, encoder, decoder
 
 logger = logging.getLogger(__name__)
 

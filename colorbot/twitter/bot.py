@@ -1,19 +1,17 @@
-import datetime
 import io
 import logging
 import re
 import signal
 import threading
-
 import time
+
+import numpy as np
+import tensorflow as tf
 import tweepy
 from colorbot import constants
 from colorbot.data import hex_to_rgb, rgb_to_hex
 from colorbot.decoder import Decoder
 from colorbot.encoder import Encoder
-
-import tensorflow as tf
-import numpy as np
 from colorbot.twitter.drawing import create_png
 
 logger = logging.getLogger(__name__)

@@ -1,11 +1,10 @@
+import html
 import json
 import re
 
 import requests
-
 from colorbot import constants
 from colorbot.data import Color, hex_to_rgb
-import html
 
 
 def valspar():

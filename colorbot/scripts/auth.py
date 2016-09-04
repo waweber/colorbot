@@ -16,7 +16,7 @@ def auth():
 
     try:
         auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-        
+
         url = auth.get_authorization_url()
 
         print("Authorize at: %s" % url)

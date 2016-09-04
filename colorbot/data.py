@@ -2,8 +2,8 @@
 """
 import json
 from collections import namedtuple
-import numpy as np
 
+import numpy as np
 from colorbot import constants
 
 Color = namedtuple("Color", ("name", "r", "g", "b"))

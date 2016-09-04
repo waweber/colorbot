@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+
 from colorbot import data, scrape
 
 logger = logging.getLogger(__name__)
