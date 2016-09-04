@@ -17,6 +17,8 @@ class Encoder(object):
         length = tf.placeholder(tf.int32, [None])
         target = tf.placeholder(tf.float32, [None, constants.COLOR_SIZE])
 
+        initial_state = cell.zero_state(tf.shape(input)[0], tf.float32)
+
         # lookup input
         lookup_input = tf.nn.embedding_lookup(embed_params, input)
 
@@ -25,7 +27,7 @@ class Encoder(object):
             cell,
             lookup_input,
             sequence_length=length,
-            dtype=tf.float32,
+            initial_state=initial_state,
             scope="Encoder",
         )
 
@@ -44,5 +46,7 @@ class Encoder(object):
         self.length = length
         self.target = target
         self.output = proj
+        self.initial_state = initial_state
+        self.final_state = final_state
         self.loss = sse
         self.trainer = trainer

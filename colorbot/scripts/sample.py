@@ -1,55 +1,17 @@
 import argparse
+import html
 import json
 import logging
 import random
 
+import sys
 from colorbot import data, encoder, decoder, constants
 
 import tensorflow as tf
 import numpy as np
+from colorbot.data import rgb_to_hex
 
 logger = logging.getLogger(__name__)
-
-page_tpl = """<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8"/>
-        <title>Colors</title>
-        <style>
-            .box {
-                width: 75px;
-                height: 75px;
-                border: #333 solid 1px;
-            }
-
-            td {
-                padding: 2px;
-            }
-
-            td.name {
-                width: 200px;
-            }
-        </style>
-    </head>
-    <body>
-        <table>
-            %(colors)s
-        </table>
-    </body>
-</html>
-"""
-
-color_row_tpl = """
-<tr>
-    %(content)s
-</tr>
-"""
-
-color_tpl = """
-<td><div class="box" style="background: #%(hex)s"/></td>
-<td class="name">%(name)s</td>
-<td><div class="box" style="background: #%(hex2)s"/></td>
-"""
 
 
 def sample():
@@ -65,11 +27,6 @@ def sample():
     with open("%s/vocab.json" % args.data_dir) as f:
         vocab = data.load_vocab(f)
 
-    with open("%s/colors.json" % args.data_dir) as f:
-        colors_list = json.loads(f.read())
-
-        name_set = {c[0] for c in colors_list}
-
     session = tf.Session()
 
     encoder_model = encoder.Encoder(args.hidden_size, len(vocab) // 2)
@@ -79,99 +36,98 @@ def sample():
     session.run(tf.initialize_all_variables())
     saver.restore(session, "%s/params" % args.data_dir)
 
-    colors = []
+    sys.stderr.write("Enter color name: ")
+    color_name = input()
 
-    color = (
-        2 * random.random() - 1.0,
-        2 * random.random() - 1.0,
-        2 * random.random() - 1.0,
+    name = "%s%s%s" % (
+        constants.START_SYMBOL,
+        color_name.strip().lower(),
+        constants.END_SYMBOL,
     )
 
-    while len(colors) < 30:
+    steps = []
 
-        # Name color
-        name = [vocab[constants.START_SYMBOL]]
-        state = None
+    state = None
 
-        while len(name) < 50 and vocab[name[-1]] != constants.END_SYMBOL:
-            if state is None:
-                output, state = session.run(
-                    [decoder_model.output, decoder_model.final_state],
-                    feed_dict={
-                        decoder_model.state: [color],
-                        decoder_model.input: [[name[-1]]],
-                        decoder_model.length: [1],
-                        decoder_model.mask: [[1.0]],
-                    },
-                )
-            else:
-                output, state = session.run(
-                    [decoder_model.output, decoder_model.final_state],
-                    feed_dict={
-                        decoder_model.initial_state: state,
-                        decoder_model.input: [[name[-1]]],
-                        decoder_model.length: [1],
-                        decoder_model.mask: [[1.0]],
-                    },
-                )
+    for i in range(len(name)):
+        char = name[i]
+        enc_char = vocab[char]
 
-            val = random.random()
-
-            for i in range(output[0].shape[0]):
-                if val < output[0][i]:
-                    name.append(i)
-                    break
-                else:
-                    val -= output[0][i]
-
-        str_name = "".join(vocab[i] for i in name)
-
-        if str_name[-1] == constants.END_SYMBOL and str_name not in name_set:
-
-            output = session.run(
-                encoder_model.output,
+        if state is None:
+            output, state = session.run(
+                [encoder_model.output, encoder_model.final_state],
                 feed_dict={
-                    encoder_model.input: [name],
-                    encoder_model.length: [len(name)],
+                    encoder_model.input: [[enc_char]],
+                    encoder_model.length: [1],
+                },
+            )
+        else:
+            output, state = session.run(
+                [encoder_model.output, encoder_model.final_state],
+                feed_dict={
+                    encoder_model.initial_state: state,
+                    encoder_model.input: [[enc_char]],
+                    encoder_model.length: [1],
                 },
             )
 
-            hex = data.rgb_to_hex(*output[0].tolist())
+        hex_str = rgb_to_hex(*output[0].tolist())
 
-            colors.append((data.rgb_to_hex(*color), str_name[1:-1], hex))
+        steps.append((char, hex_str))
 
-            color = (
-                2 * random.random() - 1.0,
-                2 * random.random() - 1.0,
-                2 * random.random() - 1.0,
-            )
+    letter_html = ""
+    color_html = ""
 
-    content = ""
+    for char, hex_str in steps:
 
-    for i in range(len(colors) // 3):
+        if char == constants.START_SYMBOL:
+            char = html.escape("<S>")
+        elif char == constants.END_SYMBOL:
+            char = html.escape("<E>")
 
-        row = ""
+        letter_html += """
+        <td>
+            %(char)s
+        </td>
+        """ % {"char": char}
 
-        for j in range(3):
-            in_hex, name, out_hex = colors[i * 3 + j]
+        color_html += """
+        <td>
+            <div class="box" style="background: #%(color)s"></div>
+        </td>
+        """ % {"color": hex_str}
 
-            color_str = color_tpl % {
-                "hex": in_hex,
-                "name": name,
-                "hex2": out_hex,
+    page = """<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8"/>
+        <title>Color Progress</title>
+        <style>
+            td {
+                padding: 2px;
+                text-align: center;
+                vertical-align: middle;
             }
 
-            row += color_str
+            .box {
+                width: 75px;
+                height: 75px;
+            }
+        </style>
+    </head>
+    <body>
+        <table>
+            <tr>
+                %(letters)s
+            </tr>
+            <tr>
+                %(colors)s
+            </tr>
+        </table>
+    </body>
+</html>
+"""
 
-        row_str = color_row_tpl % {
-            "content": row,
-        }
+    print(page % {"letters": letter_html, "colors": color_html})
 
-        content += row_str
-
-    final = page_tpl % {
-        "colors": content,
-    }
-
-    print(final)
     exit(0)
