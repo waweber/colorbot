@@ -279,25 +279,27 @@ class StreamListener(tweepy.StreamListener):
             elif name_match is not None:
                 name = name_match.group(1).strip().lower()
 
-                # Remove unknown characters
-                filtered_name = "".join(
-                    c for c in name if c in self.state.vocab)
+                # Skip tweets with mentions in them
+                if "@" not in name:
+                    # Remove unknown characters
+                    filtered_name = "".join(
+                        c for c in name if c in self.state.vocab)
 
-                # Add start/end symbols
-                input_name = (constants.START_SYMBOL + filtered_name +
-                              constants.END_SYMBOL)
+                    # Add start/end symbols
+                    input_name = (constants.START_SYMBOL + filtered_name +
+                                  constants.END_SYMBOL)
 
-                # Tell worker thread to guess
-                task = {
-                    "type": "guess",
-                    "name": input_name,
-                    "status_id": id,
-                    "screen_name": screen_name,
-                }
+                    # Tell worker thread to guess
+                    task = {
+                        "type": "guess",
+                        "name": input_name,
+                        "status_id": id,
+                        "screen_name": screen_name,
+                    }
 
-                with self.state.has_tasks:
-                    self.state.tasks.append(task)
-                    self.state.has_tasks.notify()
+                    with self.state.has_tasks:
+                        self.state.tasks.append(task)
+                        self.state.has_tasks.notify()
 
 
 def worker(state):
