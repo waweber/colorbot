@@ -86,15 +86,11 @@ def sample():
             char = html.escape("<E>")
 
         letter_html += """
-        <td>
-            %(char)s
-        </td>
+        <td>%(char)s</td>
         """ % {"char": char}
 
         color_html += """
-        <td>
-            <div class="box" style="background: #%(color)s"></div>
-        </td>
+        <td><div class="box" style="background: #%(color)s"></div></td>
         """ % {"color": hex_str}
 
     page = """<!DOCTYPE html>
@@ -117,12 +113,8 @@ def sample():
     </head>
     <body>
         <table>
-            <tr>
-                %(letters)s
-            </tr>
-            <tr>
-                %(colors)s
-            </tr>
+            <tr>%(letters)s</tr>
+            <tr>%(colors)s</tr>
         </table>
     </body>
 </html>
