@@ -3,6 +3,8 @@
 A bot that learns how to map names to colors and colors to names, and provides
 this as a service via a Twitter bot.
 
+Tested on Python >= 3.4
+
 ## Overview
 
 This is a machine learning program that uses Google's TensorFlow. It scrapes
