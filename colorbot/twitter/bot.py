@@ -213,7 +213,8 @@ def guess_color(name, status_id, screen_name, global_state):
     status = "@%s %s - %s" % (screen_name, name[:50], hex_str)
 
     try:
-        global_state.api.update_with_media("%s.png" % name, status, status_id,
+        global_state.api.update_with_media("%s.png" % name, status,
+                                           in_reply_to_status_id=status_id,
                                            file=png_file)
     except tweepy.TweepError as e:
         logging.error("Failed to tweet guessed color: %s" % e)
@@ -347,7 +348,7 @@ def run(auth, name_set, api, vocab, hidden_size, param_path):
         hidden_size (int): The model's hidden size
         param_path (str): Path of the model parameters file
     """
-    
+
     state = GlobalState()
     state.api = api
     state.name_set = name_set
