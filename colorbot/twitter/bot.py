@@ -258,7 +258,7 @@ class StreamListener(tweepy.StreamListener):
         else:
             # Find a color hex code?
             hex_match = re.search(
-                "^@[a-zA-Z0-9_]+(\s+|\s*#)([a-fA-F0-9]{6})\s*", msg)
+                "^@[a-zA-Z0-9_]+(\s+|\s*#)([a-fA-F0-9]{6})\s*$", msg)
 
             # Find a name?
             name_match = re.search("^@[a-zA-Z0-9_]+\s+(.+)", msg)
