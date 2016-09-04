@@ -257,11 +257,11 @@ class StreamListener(tweepy.StreamListener):
             pass
         else:
             # Find a color hex code?
-            hex_match = re.search("^@[a-zA-Z0-9_]+(\s+|\s*#)([a-fA-F0-9]{6})",
-                                  msg)
+            hex_match = re.search(
+                "^@[a-zA-Z0-9_]+(\s+|\s*#)([a-fA-F0-9]{6})\s*", msg)
 
             # Find a name?
-            name_match = re.search("^@[a-zA-Z0-9_]+\s+(.*)", msg)
+            name_match = re.search("^@[a-zA-Z0-9_]+\s+(.+)", msg)
 
             if hex_match is not None:
                 hex_str = hex_match.group(2)
