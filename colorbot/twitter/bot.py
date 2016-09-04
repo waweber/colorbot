@@ -362,20 +362,22 @@ def run(auth, name_set, api, vocab, hidden_size, param_path):
     signal.signal(signal.SIGTERM, term_handler)
 
     listener = StreamListener(state)
-    stream = tweepy.Stream(auth, listener)
 
     logger.info("Starting worker thread")
     worker_thread = threading.Thread(target=worker, args=(state,))
     worker_thread.start()
 
-    logger.info("Starting twitter stream")
-
-    try:
-        stream.userstream()
-    except KeyboardInterrupt:
-        pass
-
-    stream.disconnect()
+    while True:
+        try:
+            stream = tweepy.Stream(auth, listener)
+            logger.info("Starting twitter stream")
+            stream.userstream()
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            logger.warn("Caught unhandled exception: %s" % e)
+            logger.warn("Sleeping, then reconnecting stream")
+            time.sleep(30)
 
     with state.has_tasks:
         state.stop = True
