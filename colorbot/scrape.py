@@ -147,6 +147,8 @@ def ppg():
 
     matches = re.finditer(pattern, page)
 
+    name_set = set()
+
     for match in matches:
         r = int(match.group(1)) / 255
         g = int(match.group(2)) / 255
@@ -154,13 +156,16 @@ def ppg():
 
         name = html.unescape(match.group(4)).lower().strip()
 
-        name_fmt = "%s%s%s" % (
-            constants.START_SYMBOL,
-            name,
-            constants.END_SYMBOL,
-        )
+        if name not in name_set:
+            name_fmt = "%s%s%s" % (
+                constants.START_SYMBOL,
+                name,
+                constants.END_SYMBOL,
+            )
 
-        yield Color(name_fmt, r, g, b)
+            name_set.add(name)
+
+            yield Color(name_fmt, r, g, b)
 
 
 def colorhexa():
