@@ -31,7 +31,7 @@ def prepare_data():
         logger.info("Got %d colors" % count)
 
     def sorter(x):
-        mag = x.r ** 2 * x.g ** 2 * x.b ** 2
+        mag = (x.r + 1) ** 2 * (x.g + 1) ** 2 * (x.b + 1) ** 2
         return mag, x.r, x.g, x.b
 
     colors.sort(key=sorter)
