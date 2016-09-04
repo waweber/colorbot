@@ -148,7 +148,7 @@ def name_color(hex, status_id, screen_name, global_state):
         logger.warn("Giving up on naming")
     else:
         logger.info("Replying with name %s" % name)
-        status = "@%s %s" % (screen_name, name)
+        status = "@%s %s" % (name, screen_name)
 
         try:
             global_state.api.update_status(status, status_id)
