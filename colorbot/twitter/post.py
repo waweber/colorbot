@@ -81,7 +81,7 @@ def post_color(name_set, api, vocab, hidden_size, param_path):
 
     png_file = io.BytesIO(png_data)
 
-    status = "%s - %s" % (hex_str, name)
+    status = "%s - %s" % (name, hex_str)
 
     try:
         api.update_with_media("%s.png" % name, status, file=png_file)
