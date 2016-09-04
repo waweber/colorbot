@@ -163,6 +163,32 @@ def ppg():
         yield Color(name_fmt, r, g, b)
 
 
+def colorhexa():
+    url = "http://www.colorhexa.com/color-names"
+
+    result = requests.get(url)
+    page = result.content.decode("utf-8")
+
+    # parsing HTML with regex, grumble grumble
+    pattern = """<a class="t." href="/([a-z0-9]{6})">(.*?)</a></td>"""
+
+    matches = re.finditer(pattern, page)
+
+    for match in matches:
+        hex = match.group(1)
+        name = html.unescape(match.group(2)).strip().lower()
+
+        r, g, b = hex_to_rgb(hex)
+
+        name_fmt = "%s%s%s" % (
+            constants.START_SYMBOL,
+            name,
+            constants.END_SYMBOL,
+        )
+
+        yield Color(name_fmt, r, g, b)
+
+
 color_sources = [
     valspar,
     sherwin_williams,
@@ -170,4 +196,5 @@ color_sources = [
     benjamin_moore,
     dulux,
     ppg,
+    colorhexa,
 ]
